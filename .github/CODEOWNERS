@@ -1,0 +1,8 @@
+# 核心路径：回合循环、协议、持久化与 CI。改动这些文件需要在 PR 里说明原因。
+/agent/src/turn.js        @professor-lee
+/agent/src/llm.js         @professor-lee
+/agent/src/server.js      @professor-lee
+/backend/wren/turns.py    @professor-lee
+/backend/wren/store.py    @professor-lee
+/backend/wren/db.py       @professor-lee
+/.github/                 @professor-lee
