@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router';
 
+import { notesRoute } from './features/notes.js';
 import ChatView from './views/ChatView.vue';
 import SettingsView from './views/SettingsView.vue';
 
@@ -10,6 +11,7 @@ import SettingsView from './views/SettingsView.vue';
 export const routes = [
   { path: '/', name: 'home', component: ChatView },
   { path: '/c/:sessionId(\\d+)', name: 'chat', component: ChatView, props: true },
+  notesRoute,
   {
     path: '/settings',
     component: SettingsView,

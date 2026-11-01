@@ -92,3 +92,9 @@ textarea { resize: vertical; width: 100%; }
 .tool-list li { padding: 8px 0; border-bottom: 1px solid var(--border); }
 .tool-list p { margin: 2px 0 0 26px; }
 .switch { display: flex; align-items: center; gap: 8px; }
+
+.page { max-width: 820px; margin: 0 auto; padding: 24px 20px; overflow-y: auto; height: 100%; width: 100%; }
+.note { border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; margin: 10px 0; background: #fff; }
+.note header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+.note header strong { flex: 1; }
+.note-card { display: inline-block; border: 1px solid var(--border); background: #fff; border-radius: 8px; padding: 4px 10px; margin: 6px 0; text-decoration: none; font-size: 14px; }

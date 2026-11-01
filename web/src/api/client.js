@@ -52,6 +52,9 @@ export const api = {
   putTools: (switches) => request('PUT', '/api/settings/tools', switches),
   getSystemPrompt: () => request('GET', '/api/settings/system-prompt'),
   putSystemPrompt: (text) => request('PUT', '/api/settings/system-prompt', { system_prompt: text }),
+
+  listNotes: () => request('GET', '/api/notes'),
+  deleteNote: (id) => request('DELETE', `/api/notes/${id}`),
 };
 
 /**
