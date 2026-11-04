@@ -7,6 +7,7 @@
 
 import { buildSystemPrompt, selectHistory } from './context.js';
 import { LLMError, streamCompletion } from './llm.js';
+import { prepareSkills, registerResourceTool } from './skills.js';
 import { runTool } from './tools/registry.js';
 
 /** 框架自身使用的事件类型。工具通过 ctx.emit 发的自定义事件不能占用这些名字。 */
@@ -43,23 +44,36 @@ export async function runTurn(ctx, deps, emit, signal) {
   const complete = deps.complete ?? streamCompletion;
   const model = ctx.model;
 
+  // 技能运行时也属于本回合开始前确定的可见集合；准备失败也要发 turn_end。
+  let runtime;
+  try {
+    runtime = await prepareSkills(ctx, deps.registry, deps.backend, emit, signal);
+    if (runtime.names().length > 0) {
+      registerResourceTool(runtime.registry, (name) => runtime.names().includes(name));
+    }
+  } catch (err) {
+    emit({ type: 'turn_end', status: signal.aborted ? 'stopped' : 'failed', error: errorMessage(err) });
+    return;
+  }
+
   // 本回合可见的工具在开始时确定，整个回合不变。
-  const visibleNames = deps.registry.visibleTools(ctx.tool_switches);
+  const visibleNames = runtime.visibleTools;
   const visible = new Set(visibleNames);
-  const tools = deps.registry.schemas(visibleNames);
+  const tools = runtime.registry.schemas(visibleNames);
 
   const history = selectHistory(ctx.history, model.history_budget_tokens);
   /** @type {import('./types.js').ChatMessage[]} */
   const messages = [
-    { role: 'system', content: buildSystemPrompt(deps.sections, ctx) },
+    { role: 'system', content: buildSystemPrompt([...deps.sections, runtime.section], ctx) },
     ...history.messages,
-    ctx.user_message,
+    runtime.userMessage,
   ];
   emit({
     type: 'turn_info',
     tools: visibleNames,
     history_turns: history.keptTurns,
     dropped_turns: history.droppedTurns,
+    skills: runtime.names(),
   });
 
   const toolCtx = {
@@ -124,7 +138,7 @@ export async function runTurn(ctx, deps, emit, signal) {
           name: call.function.name,
           arguments: call.function.arguments,
         });
-        const out = await runTool(deps.registry, visible, call, { ...toolCtx, signal });
+        const out = await runTool(runtime.registry, visible, call, { ...toolCtx, signal });
         /** @type {import('./types.js').ChatMessage} */
         const toolMsg = {
           role: 'tool',
