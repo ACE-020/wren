@@ -7,7 +7,7 @@
 
 import { buildSystemPrompt, selectHistory } from './context.js';
 import { LLMError, streamCompletion } from './llm.js';
-import { prepareSkills, registerResourceTool } from './skills.js';
+import { prepareSkills } from './skills.js';
 import { runTool } from './tools/registry.js';
 
 /** 框架自身使用的事件类型。工具通过 ctx.emit 发的自定义事件不能占用这些名字。 */
@@ -48,18 +48,13 @@ export async function runTurn(ctx, deps, emit, signal) {
   let runtime;
   try {
     runtime = await prepareSkills(ctx, deps.registry, deps.backend, emit, signal);
-    if (runtime.names().length > 0) {
-      registerResourceTool(runtime.registry, (name) => runtime.names().includes(name));
-    }
   } catch (err) {
     emit({ type: 'turn_end', status: signal.aborted ? 'stopped' : 'failed', error: errorMessage(err) });
     return;
   }
 
-  // 本回合可见的工具在开始时确定，整个回合不变。
+  // 默认工具开关在回合开始时确定；技能激活可为下一次模型请求开放按需工具。
   const visibleNames = runtime.visibleTools;
-  const visible = new Set(visibleNames);
-  const tools = runtime.registry.schemas(visibleNames);
 
   const history = selectHistory(ctx.history, model.history_budget_tokens);
   /** @type {import('./types.js').ChatMessage[]} */
@@ -93,6 +88,10 @@ export async function runTurn(ctx, deps, emit, signal) {
   try {
     for (let step = 1; step <= model.max_steps; step++) {
       const last = step === model.max_steps;
+      // 同一模型响应中的工具调用共用本步权限，不能借前一个调用临时扩权。
+      const visible = new Set(runtime.visibleTools);
+      const tools = runtime.registry.schemas([...visible]);
+      messages[0].content = buildSystemPrompt([...deps.sections, runtime.section], ctx);
       emit({ type: 'step_start', step });
       partial = { reasoning: '', text: '' };
 
