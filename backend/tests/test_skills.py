@@ -266,3 +266,14 @@ def test_symlink_resource_escape_rejected(tmp_path: Path) -> None:
         pytest.skip("当前系统无法创建符号链接")
     with pytest.raises(SkillError):
         catalog.read_resource("demo", "link.txt")
+
+
+def test_symlink_loop_is_reported_as_invalid(tmp_path: Path) -> None:
+    catalog = _make_catalog(tmp_path)
+    directory = catalog.builtin_dir / "loop"
+    directory.mkdir()
+    try:
+        (directory / "SKILL.md").symlink_to("SKILL.md")
+    except (OSError, NotImplementedError):
+        pytest.skip("当前系统无法创建符号链接")
+    assert catalog.list()[0]["valid"] is False

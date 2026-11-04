@@ -381,10 +381,10 @@ test('停止时 partial 正文仍保留', async () => {
     const backend = fakeBackend(() => ({ skill: { name: 'metrics-query', body: SKILL_BODY } }));
     const ac = new AbortController();
     const { events, emit } = collector();
-    const p = runTurn(ctx, { registry: baseRegistry(), sections: DEFAULT_SECTIONS, backend }, emit, ac.signal);
-    await new Promise((r) => setTimeout(r, 80));
-    ac.abort();
-    await p;
+    await runTurn(ctx, { registry: baseRegistry(), sections: DEFAULT_SECTIONS, backend }, (event) => {
+      emit(event);
+      if (event.type === 'text_delta') ac.abort();
+    }, ac.signal);
     const partial = events.find((e) => e.type === 'message' && e.message.role === 'assistant');
     assert.ok(partial, '半截 assistant 消息要落库');
     assert.ok(partial.message.content.length > 0);
@@ -392,4 +392,19 @@ test('停止时 partial 正文仍保留', async () => {
   } finally {
     await llm.close();
   }
+});
+
+test('资源结果包含大量转义字符时仍保留有效分页信息', async () => {
+  const registry = baseRegistry();
+  registerResourceTool(registry, (name) => name === 'demo');
+  const backend = fakeBackend(() => ({ content: '\u0000"\\'.repeat(12000) }));
+  const result = await runTool(registry, new Set(['read_skill_resource']), {
+    id: 'escaped', type: 'function', function: { name: 'read_skill_resource',
+      arguments: JSON.stringify({ skill: 'demo', path: 'references/example.md' }) },
+  }, { backend, turnId: 1, sessionId: 1, emit() {}, signal: new AbortController().signal });
+  assert.equal(result.ok, true);
+  const page = JSON.parse(result.content);
+  assert.ok(page.content.length > 0);
+  assert.equal(page.has_more, true);
+  assert.ok(result.content.length <= 20000);
 });

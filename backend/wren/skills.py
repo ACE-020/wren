@@ -168,7 +168,7 @@ def _resolve_within(base: Path, target: Path, label: str) -> Path:
     try:
         resolved = target.resolve(strict=True)
         base_resolved = base.resolve(strict=True)
-    except OSError as exc:
+    except (OSError, RuntimeError, ValueError) as exc:
         raise SkillError(f"{label} 不存在或不可访问") from exc
     if not _is_within(base_resolved, resolved):
         raise SkillError(f"{label} 越界到技能目录之外")

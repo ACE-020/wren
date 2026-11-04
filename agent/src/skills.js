@@ -290,13 +290,20 @@ export function registerResourceTool(registry, isActive) {
       );
       if (typeof data?.content !== 'string') throw new Error('后端返回的资源内容无效。');
       const total = data.content.length;
-      const content = data.content.slice(offset, offset + limit);
-      return {
+      let content = data.content.slice(offset, offset + limit);
+      const result = {
         content,
         offset,
         total_chars: total,
         has_more: offset + content.length < total,
       };
+      // 引号和控制字符在 JSON 中会膨胀，保留完整分页信息以便继续读取。
+      while (JSON.stringify(result).length > RESULT_MAX_CHARS) {
+        content = content.slice(0, Math.floor(content.length * 0.8));
+        result.content = content;
+        result.has_more = offset + content.length < total;
+      }
+      return result;
     },
   });
 }
